@@ -37,6 +37,7 @@ _env() {
 			;;
 	esac
 
+	NINJA_STATUS="[%r %f/%t %es] "
 	cat>>env.sh<<-EOF
 		ARCH=$ARCH
 		HOST_OS=$HOST_OS
@@ -46,6 +47,7 @@ _env() {
 		VER=$(<VERSION)
 		PATH=$PWD/bin:$PWD/depot_tools:$PATH
 		DEPOT_TOOLS_UPDATE=0
+		NINJA_STATUS=$NINJA_STATUS
 	EOF
 	cat env.sh >> $GITHUB_ENV
 }
@@ -293,13 +295,11 @@ build-chrome() {
 	esac
 	echo "status=running" >> $GITHUB_OUTPUT
 
-	if [[ $TARGET_OS != android ]]; then
-		pre_targets=(printing/backend/mojom:mojom_shared)
-	fi
+	case "$TARGET_OS" in linux|mac)
+		pre_targets=(printing/backend/mojom:mojom_shared) ;;
+	esac
 
-	if [ "$1" = "pre" ] && [ -n "$pre_targets" ]; then
-		ninja -C "$build_dir" ${pre_targets[*]} || _exit
-	fi
+	[ -z "$pre_targets" ] || ninja -C "$build_dir" ${pre_targets[*]} || _exit
 	ninja -C "$build_dir" ${targets[*]:-chrome} || _exit
 	echo "status=finished" >> $GITHUB_OUTPUT
 
@@ -365,7 +365,7 @@ case "$1" in
 		install-dep
 		;;
 	build)
-		build-chrome $2
+		build-chrome
 		;;
 	pack)
 		pack_$2
