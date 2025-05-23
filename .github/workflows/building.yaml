@@ -26,7 +26,7 @@ jobs:
         run: ./build.sh install-dep
       - name: Build
         id: build
-        run: ./build.sh build
+        run: ./build.sh build pre
       - name: Package build cache
         if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
         run: ./build.sh pack cache

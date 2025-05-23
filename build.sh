@@ -60,7 +60,7 @@ prepare() {
 	local CIPD_URL="https://chrome-infra-packages.appspot.com/dl"
 	wget -nv -O gn.zip "$CIPD_URL/gn/gn/${HOST_OS}-${HOST_ARCH}/+/latest"
 	unzip -d bin gn.zip 'gn*'
-	wget -nv -O ninja.zip "$CIPD_URL/infra/3pp/tools/ninja/${HOST_OS}-${HOST_ARCH}/+/latest"
+	wget -nv -O ninja.zip "https://github.com/ninja-build/ninja/releases/latest/download/ninja-$HOST_OS.zip"
 	unzip -d bin ninja.zip 'ninja*'
 	wget -nv -O python3.zip "$CIPD_URL/infra/3pp/tools/cpython3/${HOST_OS}-${HOST_ARCH}/+/latest"
 	unzip -q python3.zip
@@ -293,13 +293,17 @@ build-chrome() {
 			targets=(mini_installer)
 			;;
 	esac
+
 	echo "status=running" >> $GITHUB_OUTPUT
 
 	case "$TARGET_OS" in linux|mac)
 		pre_targets=(printing/backend/mojom:mojom_shared) ;;
 	esac
 
-	[ -z "$pre_targets" ] || ninja -C "$build_dir" ${pre_targets[*]} || _exit
+	if [ "$1" = "pre" ] && [ -n "$pre_targets" ]; then
+		ninja -C "$build_dir" ${pre_targets[*]} || _exit
+	fi
+	ninja -C "$build_dir" ${targets[*]:-chrome} || \
 	ninja -C "$build_dir" ${targets[*]:-chrome} || _exit
 	echo "status=finished" >> $GITHUB_OUTPUT
 
@@ -365,7 +369,7 @@ case "$1" in
 		install-dep
 		;;
 	build)
-		build-chrome
+		build-chrome $2
 		;;
 	pack)
 		pack_$2
@@ -374,7 +378,7 @@ case "$1" in
 		unpack_$2
 		;;
 	list_args)
-		cd src
+		cd src; set +x
 		printf ":: All targets\n"
 		gn ls "out/${TARGET}_${ARCH}"
 		printf "\n\n:: All args.gn\n"
