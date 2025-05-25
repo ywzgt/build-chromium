@@ -30,6 +30,7 @@ enable_iterator_debugging = false
 enable_mdns = false
 enable_nacl = false
 enable_vr = false
+enable_widevine = true
 exclude_unwind_tables = true
 ffmpeg_branding = "Chrome"
 proprietary_codecs = true

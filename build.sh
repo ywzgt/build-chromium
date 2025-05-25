@@ -60,7 +60,7 @@ prepare() {
 	local CIPD_URL="https://chrome-infra-packages.appspot.com/dl"
 	wget -nv -O gn.zip "$CIPD_URL/gn/gn/${HOST_OS}-${HOST_ARCH}/+/latest"
 	unzip -d bin gn.zip 'gn*'
-	wget -nv -O ninja.zip "https://github.com/ninja-build/ninja/releases/latest/download/ninja-$HOST_OS.zip"
+	wget -nv -O ninja.zip "$CIPD_URL/infra/3pp/tools/ninja/${HOST_OS}-${HOST_ARCH}/+/latest"
 	unzip -d bin ninja.zip 'ninja*'
 	wget -nv -O python3.zip "$CIPD_URL/infra/3pp/tools/cpython3/${HOST_OS}-${HOST_ARCH}/+/latest"
 	unzip -q python3.zip
@@ -166,7 +166,6 @@ rsync_src(){
 		python3 build/linux/sysroot_scripts/install-sysroot.py --arch=$ARCH
 	fi
 	python3 tools/clang/scripts/update.py
-	python3 tools/rust/update_rust.py
 
 	if [[ $HOST_OS != windows ]]; then
 		sed -i '/^\s\+download_win$/d' third_party/node/update_node_binaries
@@ -228,6 +227,15 @@ rsync_src(){
 		download_from_google_storage.py --no_resume --bucket chromium-browser-clang/ciopfs -s build/ciopfs.sha1
 		update_winsdk
 		python3 build/vs_toolchain.py update --force
+
+		wget -nv https://static.rust-lang.org/dist/2025-05-26/rust-nightly-x86_64-unknown-linux-gnu.tar.xz
+		tar xf rust-nightly-x86_64-unknown-linux-gnu.tar.xz
+		rm -rf rust-nightly-x86_64-unknown-linux-gnu{.tar.xz,}
+		./rust-nightly-x86_64-unknown-linux-gnu/install.sh --destdir=third_party/rust-nightly --without=rust-docs --prefix=
+		local rustc_version="$(./third_party/rust-nightly/bin/rustc --version)"
+		sed -i "/rustc_version =/s/\"$/${rustc_version}&/;s|rust_sysroot_absolute = \"|&//third_party/rust-nightly|" build/config/rust.gni
+	else
+		python3 tools/rust/update_rust.py
 	fi
 }
 
@@ -302,8 +310,19 @@ build-chrome() {
 
 	if [ "$1" = "pre" ] && [ -n "$pre_targets" ]; then
 		ninja -C "$build_dir" ${pre_targets[*]} || _exit
+		local pre_target_file=(
+			components/page_image_service/mojom/page_image_service.mojom.h
+			components/content_settings/core/common/bromite_content_settings.inc
+			printing/mojom/printing_context.mojom-shared-internal.h
+		)
+		for f in "${pre_target_file[@]}"; do
+			if [ -f "$build_dir/gen/$f" ] && [ ! -f "$build_dir/clang_${ARCH}/gen/$f" ]
+			then
+				mkdir -p "$build_dir/clang_${ARCH}/gen/${f%/*}"
+				cp -a "$build_dir/gen/$f" "$build_dir/clang_${ARCH}/gen/$f"
+			fi
+		done
 	fi
-	ninja -C "$build_dir" ${targets[*]:-chrome} || \
 	ninja -C "$build_dir" ${targets[*]:-chrome} || _exit
 	echo "status=finished" >> $GITHUB_OUTPUT
 
@@ -378,10 +397,9 @@ case "$1" in
 		unpack_$2
 		;;
 	list_args)
-		cd src; set +x
-		printf ":: All targets\n"
-		gn ls "out/${TARGET}_${ARCH}"
-		printf "\n\n:: All args.gn\n"
-		gn args "out/${TARGET}_${ARCH}"  --list
+		cd src
+		gn ls "out/${TARGET}_${ARCH}" > ../targets-${TARGET}_${ARCH}.gn.txt
+		gn args "out/${TARGET}_${ARCH}"  --list > ../args-${TARGET}_${ARCH}.gn.txt
+		gn args "out/${TARGET}_${ARCH}"  --list --short | tee -a ../args-short-${TARGET}_${ARCH}.gn.txt
 		;;
 esac

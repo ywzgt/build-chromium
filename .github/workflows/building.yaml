@@ -39,6 +39,12 @@ jobs:
           retention-days: 15
       - name: List targets and args
         run: ./build.sh list_args
+      - name: Upload args files
+        uses: actions/upload-artifact@v4
+        with:
+          name: args-${{ inputs.target }}-${{ inputs.arch }}
+          path: ./*.gn.txt
+          overwrite: true
       - name: Setup tmate ssh session
         if: failure() && github.event_name == 'workflow_dispatch'
         uses: mxschmitt/action-tmate@v3
