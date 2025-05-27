@@ -230,8 +230,9 @@ rsync_src(){
 
 		wget -nv https://static.rust-lang.org/dist/2025-05-26/rust-nightly-x86_64-unknown-linux-gnu.tar.xz
 		tar xf rust-nightly-x86_64-unknown-linux-gnu.tar.xz
-		rm -rf rust-nightly-x86_64-unknown-linux-gnu{.tar.xz,}
+		rm rust-nightly-x86_64-unknown-linux-gnu.tar.xz
 		./rust-nightly-x86_64-unknown-linux-gnu/install.sh --destdir=third_party/rust-nightly --without=rust-docs --prefix=
+		rm -r rust-nightly-x86_64-unknown-linux-gnu
 		local rustc_version="$(./third_party/rust-nightly/bin/rustc --version)"
 		sed -i "/rustc_version =/s/\"$/${rustc_version}&/;s|rust_sysroot_absolute = \"|&//third_party/rust-nightly|" build/config/rust.gni
 	else
@@ -305,7 +306,7 @@ build-chrome() {
 	echo "status=running" >> $GITHUB_OUTPUT
 
 	case "$TARGET_OS" in linux|mac)
-		pre_targets=(printing/backend/mojom:mojom_shared) ;;
+		pre_targets=(printing/{mojom:printing_context,backend/mojom:mojom}_headers) ;;
 	esac
 
 	if [ "$1" = "pre" ] && [ -n "$pre_targets" ]; then
@@ -314,12 +315,19 @@ build-chrome() {
 			components/page_image_service/mojom/page_image_service.mojom.h
 			components/content_settings/core/common/bromite_content_settings.inc
 			printing/mojom/printing_context.mojom-shared-internal.h
+			# printing/backend/mojom/print_backend.mojom.h
 		)
 		for f in "${pre_target_file[@]}"; do
 			if [ -f "$build_dir/gen/$f" ] && [ ! -f "$build_dir/clang_${ARCH}/gen/$f" ]
 			then
 				mkdir -p "$build_dir/clang_${ARCH}/gen/${f%/*}"
 				cp -a "$build_dir/gen/$f" "$build_dir/clang_${ARCH}/gen/$f"
+				if [[ ${TARGET_OS}-${ARCH} = android-*64 ]]; then
+					local _arch=${ARCH%64}
+					_arch=${_arch/x/x86}
+					mkdir -p "$build_dir/clang_${_arch}/gen/${f%/*}"
+					cp -a "$build_dir/gen/$f" "$build_dir/clang_${_arch}/gen/$f"
+				fi
 			fi
 		done
 	fi
@@ -398,8 +406,8 @@ case "$1" in
 		;;
 	list_args)
 		cd src
-		gn ls "out/${TARGET}_${ARCH}" > ../targets-${TARGET}_${ARCH}.gn.txt
-		gn args "out/${TARGET}_${ARCH}"  --list > ../args-${TARGET}_${ARCH}.gn.txt
-		gn args "out/${TARGET}_${ARCH}"  --list --short | tee -a ../args-short-${TARGET}_${ARCH}.gn.txt
+		gn ls "out/${TARGET}_${ARCH}" > ../targets-${TARGET}_${ARCH}.txt
+		gn args "out/${TARGET}_${ARCH}"  --list > ../args-${TARGET}_${ARCH}.txt
+		gn args "out/${TARGET}_${ARCH}"  --list --short | tee -a ../args-short-${TARGET}_${ARCH}.txt
 		;;
 esac
