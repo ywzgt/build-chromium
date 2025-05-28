@@ -163,6 +163,7 @@ rsync_src(){
 
 	if [[ $TARGET_OS = linux ]]; then
 		sed -i 's/-${CHANNEL}//' chrome/installer/linux/debian/build.sh
+		sed -i '/^Package:/s/-@@CHANNEL@@//' chrome/installer/linux/debian/control.template
 		python3 build/linux/sysroot_scripts/install-sysroot.py --arch=$ARCH
 	fi
 	python3 tools/clang/scripts/update.py
@@ -230,11 +231,13 @@ rsync_src(){
 
 		wget -nv https://static.rust-lang.org/dist/2025-05-26/rust-nightly-x86_64-unknown-linux-gnu.tar.xz
 		tar xf rust-nightly-x86_64-unknown-linux-gnu.tar.xz
-		rm rust-nightly-x86_64-unknown-linux-gnu.tar.xz
-		./rust-nightly-x86_64-unknown-linux-gnu/install.sh --destdir=third_party/rust-nightly --without=rust-docs --prefix=
-		rm -r rust-nightly-x86_64-unknown-linux-gnu
+		./rust-nightly-x86_64-unknown-linux-gnu/install.sh --disable-ldconfig --destdir=third_party/rust-nightly --without=rust-docs --prefix=
+		rm -rf rust-nightly-x86_64-unknown-linux-gnu{.tar.xz,}
 		local rustc_version="$(./third_party/rust-nightly/bin/rustc --version)"
 		sed -i "/rustc_version =/s/\"$/${rustc_version}&/;s|rust_sysroot_absolute = \"|&//third_party/rust-nightly|" build/config/rust.gni
+		for l in `find third_party/rust-nightly -iname libadler2-*.rlib`; do
+			cp -a "$l" "${l/libadler2/libadler}"
+		done
 	else
 		python3 tools/rust/update_rust.py
 	fi
@@ -320,13 +323,14 @@ build-chrome() {
 		for f in "${pre_target_file[@]}"; do
 			if [ -f "$build_dir/gen/$f" ] && [ ! -f "$build_dir/clang_${ARCH}/gen/$f" ]
 			then
-				mkdir -p "$build_dir/clang_${ARCH}/gen/${f%/*}"
-				cp -a "$build_dir/gen/$f" "$build_dir/clang_${ARCH}/gen/$f"
+				[[ ${TARGET_OS} != android ]] || local _p="android_"
+				mkdir -p "$build_dir/${_p}clang_${ARCH}/gen/${f%/*}"
+				cp -a "$build_dir/gen/$f" "$build_dir/${_p}clang_${ARCH}/gen/$f"
 				if [[ ${TARGET_OS}-${ARCH} = android-*64 ]]; then
 					local _arch=${ARCH%64}
 					_arch=${_arch/x/x86}
-					mkdir -p "$build_dir/clang_${_arch}/gen/${f%/*}"
-					cp -a "$build_dir/gen/$f" "$build_dir/clang_${_arch}/gen/$f"
+					mkdir -p "$build_dir/android_clang_${_arch}/gen/${f%/*}"
+					cp -a "$build_dir/gen/$f" "$build_dir/android_clang_${_arch}/gen/$f"
 				fi
 			fi
 		done
