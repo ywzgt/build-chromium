@@ -229,15 +229,19 @@ rsync_src(){
 		update_winsdk
 		python3 build/vs_toolchain.py update --force
 
-		wget -nv https://static.rust-lang.org/dist/2025-05-26/rust-nightly-x86_64-unknown-linux-gnu.tar.xz
-		tar xf rust-nightly-x86_64-unknown-linux-gnu.tar.xz
-		./rust-nightly-x86_64-unknown-linux-gnu/install.sh --disable-ldconfig --destdir=third_party/rust-nightly --without=rust-docs --prefix=
+		#wget -nv https://static.rust-lang.org/dist/2025-05-26/rust-nightly-x86_64-unknown-linux-gnu.tar.xz
+		wget -nv "https://commondatastorage.googleapis.com/chromium-browser-clang/Linux_x64/rust-toolchain-1d679446b01e65f9bc9ae609d0ae1e4a9c0ccaa3-1-llvmorg-21-init-12857-g03cc50fd.tar.xz" -O rust-nightly-x86_64-unknown-linux-gnu.tar.xz
+		mkdir third_party/rust-nightly
+		tar xf rust-nightly-x86_64-unknown-linux-gnu.tar.xz -C third_party/rust-nightly
+# 		./rust-nightly-x86_64-unknown-linux-gnu/install.sh --disable-ldconfig --destdir=third_party/rust-nightly --without=rust-docs --prefix=
 		rm -rf rust-nightly-x86_64-unknown-linux-gnu{.tar.xz,}
 		local rustc_version="$(./third_party/rust-nightly/bin/rustc --version)"
 		sed -i "/rustc_version =/s/\"$/${rustc_version}&/;s|rust_sysroot_absolute = \"|&//third_party/rust-nightly|" build/config/rust.gni
-		for l in `find third_party/rust-nightly -iname libadler2-*.rlib`; do
-			cp -a "$l" "${l/libadler2/libadler}"
-		done
+# 		for l in `find third_party/rust-nightly -iname libadler2-*.rlib`; do
+# 			cp -a "$l" "${l/libadler2/libadler}"
+# 		done
+# 		./rust-nightly-x86_64-pc-windows-msvc/install.sh --disable-ldconfig --components=rust-std-x86_64-pc-windows-msvc --destdir=win64 --prefix=
+# 		cp -a win64/lib/rustlib/x86_64-pc-windows-msvc third_party/rust-nightly/lib/rustlib
 	else
 		python3 tools/rust/update_rust.py
 	fi
@@ -315,15 +319,16 @@ build-chrome() {
 	if [ "$1" = "pre" ] && [ -n "$pre_targets" ]; then
 		ninja -C "$build_dir" ${pre_targets[*]} || _exit
 		local pre_target_file=(
-			components/page_image_service/mojom/page_image_service.mojom.h
+			chrome/browser/page_info/page_info_buildflags.h
+			components/page_image_service/mojom/page_image_service.mojom{,-{features,shared{,-internal},forward}}.h
 			components/content_settings/core/common/bromite_content_settings.inc
 			printing/mojom/printing_context.mojom-shared-internal.h
 			# printing/backend/mojom/print_backend.mojom.h
 		)
 		for f in "${pre_target_file[@]}"; do
-			if [ -f "$build_dir/gen/$f" ] && [ ! -f "$build_dir/clang_${ARCH}/gen/$f" ]
+			[[ ${TARGET_OS} != android ]] || local _p="android_"
+			if [ -f "$build_dir/gen/$f" ] && [ ! -f "$build_dir/${_p}clang_${ARCH}/gen/$f" ]
 			then
-				[[ ${TARGET_OS} != android ]] || local _p="android_"
 				mkdir -p "$build_dir/${_p}clang_${ARCH}/gen/${f%/*}"
 				cp -a "$build_dir/gen/$f" "$build_dir/${_p}clang_${ARCH}/gen/$f"
 				if [[ ${TARGET_OS}-${ARCH} = android-*64 ]]; then
@@ -410,6 +415,8 @@ case "$1" in
 		;;
 	list_args)
 		cd src
+		[[ $ARCH = *64 ]] || exit 0
+		echo "upload=yes" >> $GITHUB_OUTPUT
 		gn ls "out/${TARGET}_${ARCH}" > ../targets-${TARGET}_${ARCH}.txt
 		gn args "out/${TARGET}_${ARCH}"  --list > ../args-${TARGET}_${ARCH}.txt
 		gn args "out/${TARGET}_${ARCH}"  --list --short | tee -a ../args-short-${TARGET}_${ARCH}.txt

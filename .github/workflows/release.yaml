@@ -1,0 +1,33 @@
+name: Create release
+on:
+  workflow_call:
+    inputs:
+      arch:
+        required: true
+        type: string
+      ros:
+        required: true
+        type: string
+      target:
+        required: true
+        type: string
+
+jobs:
+  doing:
+    runs-on: ${{ inputs.ros }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Generate release version
+        run: echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+      - name: Download artifact for ${{ inputs.target }} ${{ inputs.arch }}
+        uses: actions/download-artifact@v4
+        with:
+          name: release-${{ env.VERSION }}-${{ inputs.target }}-${{ inputs.arch }}
+      - run: ls -la
+      - name: Upload to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          files: release/*
+          fail_on_unmatched_files: true

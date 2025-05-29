@@ -28,18 +28,20 @@ jobs:
         id: build
         run: ./build.sh build pre
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
           retention-days: 15
-      - name: List targets and args
+      - name: List GN args
+        id: args
         run: ./build.sh list_args
       - name: Upload args files
+        if: steps.args.outputs.upload == 'yes'
         uses: actions/upload-artifact@v4
         with:
           name: args-${{ inputs.target }}-${{ inputs.arch }}
@@ -71,10 +73,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -115,10 +117,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -159,10 +161,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -203,10 +205,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -247,10 +249,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -291,10 +293,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -335,10 +337,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -379,10 +381,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -423,10 +425,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
@@ -467,10 +469,10 @@ jobs:
         id: build
         run: ./build.sh build
       - name: Package build cache
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
-        if: steps.build.outputs.status == 'running' && ${{ !cancelled() }}
+        if: steps.build.outputs.status == 'running' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
