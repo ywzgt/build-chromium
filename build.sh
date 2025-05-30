@@ -167,6 +167,7 @@ rsync_src(){
 		python3 build/linux/sysroot_scripts/install-sysroot.py --arch=$ARCH
 	fi
 	python3 tools/clang/scripts/update.py
+	python3 tools/rust/update_rust.py; rm -rf "$HOME/.cargo"
 
 	if [[ $HOST_OS != windows ]]; then
 		sed -i '/^\s\+download_win$/d' third_party/node/update_node_binaries
@@ -228,22 +229,6 @@ rsync_src(){
 		download_from_google_storage.py --no_resume --bucket chromium-browser-clang/ciopfs -s build/ciopfs.sha1
 		update_winsdk
 		python3 build/vs_toolchain.py update --force
-
-		#wget -nv https://static.rust-lang.org/dist/2025-05-26/rust-nightly-x86_64-unknown-linux-gnu.tar.xz
-		wget -nv "https://commondatastorage.googleapis.com/chromium-browser-clang/Linux_x64/rust-toolchain-1d679446b01e65f9bc9ae609d0ae1e4a9c0ccaa3-1-llvmorg-21-init-12857-g03cc50fd.tar.xz" -O rust-nightly-x86_64-unknown-linux-gnu.tar.xz
-		mkdir third_party/rust-nightly
-		tar xf rust-nightly-x86_64-unknown-linux-gnu.tar.xz -C third_party/rust-nightly
-# 		./rust-nightly-x86_64-unknown-linux-gnu/install.sh --disable-ldconfig --destdir=third_party/rust-nightly --without=rust-docs --prefix=
-		rm -rf rust-nightly-x86_64-unknown-linux-gnu{.tar.xz,}
-		local rustc_version="$(./third_party/rust-nightly/bin/rustc --version)"
-		sed -i "/rustc_version =/s/\"$/${rustc_version}&/;s|rust_sysroot_absolute = \"|&//third_party/rust-nightly|" build/config/rust.gni
-		for l in `find third_party/rust-nightly -iname libadler2-*.rlib`; do
-			cp -a "$l" "${l/libadler2/libadler}"
-		done
-# 		./rust-nightly-x86_64-pc-windows-msvc/install.sh --disable-ldconfig --components=rust-std-x86_64-pc-windows-msvc --destdir=win64 --prefix=
-# 		cp -a win64/lib/rustlib/x86_64-pc-windows-msvc third_party/rust-nightly/lib/rustlib
-	else
-		python3 tools/rust/update_rust.py
 	fi
 }
 

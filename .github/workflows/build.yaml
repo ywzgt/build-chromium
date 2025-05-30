@@ -1,4 +1,4 @@
-name: Build desktop platform
+name: Build all platform
 on:
   workflow_dispatch:
   push:
