@@ -237,9 +237,9 @@ rsync_src(){
 		rm -rf rust-nightly-x86_64-unknown-linux-gnu{.tar.xz,}
 		local rustc_version="$(./third_party/rust-nightly/bin/rustc --version)"
 		sed -i "/rustc_version =/s/\"$/${rustc_version}&/;s|rust_sysroot_absolute = \"|&//third_party/rust-nightly|" build/config/rust.gni
-# 		for l in `find third_party/rust-nightly -iname libadler2-*.rlib`; do
-# 			cp -a "$l" "${l/libadler2/libadler}"
-# 		done
+		for l in `find third_party/rust-nightly -iname libadler2-*.rlib`; do
+			cp -a "$l" "${l/libadler2/libadler}"
+		done
 # 		./rust-nightly-x86_64-pc-windows-msvc/install.sh --disable-ldconfig --components=rust-std-x86_64-pc-windows-msvc --destdir=win64 --prefix=
 # 		cp -a win64/lib/rustlib/x86_64-pc-windows-msvc third_party/rust-nightly/lib/rustlib
 	else
