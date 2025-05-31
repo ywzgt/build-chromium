@@ -167,22 +167,22 @@ rsync_src(){
 		python3 build/linux/sysroot_scripts/install-sysroot.py --arch=$ARCH
 	fi
 	python3 tools/clang/scripts/update.py
-	python3 tools/rust/update_rust.py; rm -rf "$HOME/.cargo"
+	python3 tools/rust/update_rust.py; rm -rf "$HOME/.cargo/"
 
 	if [[ $HOST_OS != windows ]]; then
-		sed -i '/^\s\+download_win$/d' third_party/node/update_node_binaries
+		sed -i '/^update_win$/d' third_party/node/update_node_binaries
 		if [[ $HOST_OS = linux ]]; then
-			sed -i '/^\s\+download_unix.*darwin-/d' third_party/node/update_node_binaries
+			sed -i '/^update_unix.*darwin-/d' third_party/node/update_node_binaries
 		else
-			sed -i '/^\s\+download_unix.*linux/d' third_party/node/update_node_binaries
+			sed -i '/^update_unix.*linux/d' third_party/node/update_node_binaries
 			if [[ $HOST_ARCH = arm64 ]]; then
-				sed -i '/^\s\+download_unix.*darwin-x64/d' third_party/node/update_node_binaries
+				sed -i '/^update_unix.*darwin-x64/d' third_party/node/update_node_binaries
 			else
-				sed -i '/^\s\+download_unix.*darwin-arm64/d' third_party/node/update_node_binaries
+				sed -i '/^update_unix.*darwin-arm64/d' third_party/node/update_node_binaries
 			fi
 		fi
 	else
-		sed -i '/^\s\+download_unix\s/d' third_party/node/update_node_binaries
+		sed -i '/^update_unix\s/d' third_party/node/update_node_binaries
 	fi
 	sed -i '/ wget -P /s/wget/& -nv/' third_party/node/update_node_binaries
 	third_party/node/update_node_binaries
@@ -204,7 +204,7 @@ rsync_src(){
 		tools/update_pgo_profiles.py --target=$pgo_target update --gs-url-base=chromium-optimization-profiles/pgo_profiles
 		ln -sv ../../../depot_tools v8/third_party
 		v8/tools/builtins-pgo/download_profiles.py download
-		[[ $TARGET_OS != mac ]] || download_from_google_storage.py --no_resume --bucket chromium-browser-clang -s tools/clang/dsymutil/bin/dsymutil.x64.sha1 -o tools/clang/dsymutil/bin/dsymutil
+		[[ $HOST_OS != mac ]] || download_from_google_storage.py --no_resume --bucket chromium-browser-clang -s tools/clang/dsymutil/bin/dsymutil.${HOST_ARCH/amd/x}.sha1 -o tools/clang/dsymutil/bin/dsymutil
 	fi
 
 	update_winsdk() {
@@ -226,6 +226,7 @@ rsync_src(){
 	if [[ $TARGET_OS = win ]] && [[ $HOST_OS != windows ]]; then
 		[[ $HOST_OS = mac ]] || sudo apt install -y gperf libfuse2
 		download_from_google_storage.py --no_resume --bucket chromium-browser-clang/rc -s build/toolchain/win/rc/linux64/rc.sha1
+		download_from_google_storage.py --no_resume --bucket chromium-browser-clang/rc -s build/toolchain/win/rc/mac/rc.sha1
 		download_from_google_storage.py --no_resume --bucket chromium-browser-clang/ciopfs -s build/ciopfs.sha1
 		update_winsdk
 		python3 build/vs_toolchain.py update --force
@@ -239,9 +240,19 @@ install-dep() {
 	elif [[ $ARCH = arm* ]]; then
 		_args="--arm"
 	fi
-	case "$TARGET_OS" in android|linux)
-		install-build-dep.sh $_args
-		;;
+	case "$TARGET_OS" in
+		android|linux)
+			install-build-dep.sh $_args
+			;;
+		win)
+			if [[ $HOST_OS = linux ]]; then
+				sudo apt install -y gperf libfuse2
+				local toolchain_dir="src/third_party/depot_tools/win_toolchain/vs_files"
+				if ! mountpoint -q "${toolchain_dir}"; then
+					src/build/ciopfs -o use_ino ${toolchain_dir}.ciopfs ${toolchain_dir}
+				fi
+			fi
+			;;
 	esac
 }
 
@@ -261,6 +272,13 @@ build-chrome() {
 			exit 0
 		fi
 	}
+
+	_rust_prebuild() {
+		sleep 1
+		ninja -C "$build_dir" \
+			build/rust/chromium_prelude || _rust_prebuild
+	}
+
 	touch ../in_building
 	sleep 18000 && rm ../in_building && pkill ninja &
 
@@ -279,6 +297,7 @@ build-chrome() {
 			pre_targets=(
 				components/page_image_service/mojom:mojo_bindings
 				chrome/browser/resource_coordinator:mojo_bindings
+				chrome/browser/page_info:page_info_buildflags
 			)
 			if [[ $TARGET != android ]]; then
 				pre_targets+=(components/content_settings/core/common:bromite_content_settings)
@@ -297,20 +316,21 @@ build-chrome() {
 
 	echo "status=running" >> $GITHUB_OUTPUT
 
-	case "$TARGET_OS" in linux|mac)
+	case "$TARGET_OS" in linux|mac|win)
 		pre_targets=(printing/{mojom:printing_context,backend/mojom:mojom}_headers) ;;
 	esac
 
+	[[ $TARGET_OS-$1 != win-pre ]] || _rust_prebuild
 	if [ "$1" = "pre" ] && [ -n "$pre_targets" ]; then
 		ninja -C "$build_dir" ${pre_targets[*]} || _exit
 		local pre_target_file=(
 			chrome/browser/page_info/page_info_buildflags.h
+			chrome/browser/resource_coordinator/lifecycle_unit_state.mojom{,-forward,-features,-shared}.h
 			components/page_image_service/mojom/page_image_service.mojom{,-{features,shared{,-internal},forward}}.h
 			components/content_settings/core/common/bromite_content_settings.inc
 			printing/mojom/printing_context.mojom-shared-internal.h
-			# printing/backend/mojom/print_backend.mojom.h
 		)
-		for f in "${pre_target_file[@]}"; do
+		for f in ${pre_target_file[@]}; do
 			[[ ${TARGET_OS} != android ]] || local _p="android_"
 			if [ -f "$build_dir/gen/$f" ] && [ ! -f "$build_dir/${_p}clang_${ARCH}/gen/$f" ]
 			then
@@ -337,6 +357,10 @@ build-chrome() {
 
 pack_cache() {
 	rm -rf src/.git
+	local toolchain_dir="src/third_party/depot_tools/win_toolchain/vs_files"
+	if [[ $HOST_OS-$TARGET = linux-win ]] && mountpoint -q "${toolchain_dir}"; then
+		umount -v $toolchain_dir
+	fi
 	tar cf - src | zstd -vv -12 -T0 -o build_cache-$VER-$TARGET-$ARCH.tar.zst
 }
 
@@ -344,11 +368,12 @@ unpack_cache() {
 	local f="build_cache-$VER-$TARGET-$ARCH.tar.zst"
 	echo "Extracting the $f..."
 	tar xf $f
-	ls -lh $f && rm -f $f
+	ls -lh $f && 	rm -f $f
 }
 
 pack_release() {
 	local DEST="$PWD/release"
+	local build_dir="src/out/${TARGET}_${ARCH}"
 	mkdir -p "$DEST"
 	case "$TARGET_OS" in
 		android)
@@ -359,20 +384,21 @@ pack_release() {
 			else
 				prefix="${TARGET}_${ARCH}"
 			fi
-			mv -v src/out/${TARGET}_${ARCH}/apks/*.a{ab,pk} "$DEST"
+			mv -v $build_dir/apks/*.a{ab,pk} "$DEST"
 			cd "$DEST"
 			for i in *; do mv $i "${prefix}_$i"; done
 			;;
 		linux)
-			mv -v src/out/${TARGET}_${ARCH}/*.deb "$DEST"
+			mv -v $build_dir/*.deb "$DEST"
 			;;
 		mac)
-			cd "src/out/${TARGET}_${ARCH}"
-			xattr -rc Chromium.app; sudo chown -R 0:0 Chromium.app
+			cd "$build_dir"
+			xattr -rc Chromium.app
+			sudo chown -R 0:0 Chromium.app
 			sudo tar cf - Chromium.app | xz -T0 > "$DEST/"Chromium.app-$ARCH.tar.xz
 			;;
 		win)
-			mv -v src/out/${TARGET}_${ARCH}/mini_installer.exe "$DEST/mini_installer-$ARCH.exe"
+			mv -v $build_dir/mini_installer.exe "$DEST/mini_installer-$ARCH.exe"
 			;;
 	esac
 }
@@ -401,6 +427,10 @@ case "$1" in
 	list_args)
 		cd src
 		[[ $ARCH = *64 ]] || exit 0
+		if [[ $HOST_OS-$TARGET = linux-win ]]; then
+			rm -rf  third_party/depot_tools/win_toolchain/vs_files
+			cp -a third_party/depot_tools/win_toolchain/vs_files{.ciopfs,}
+		fi
 		echo "upload=yes" >> $GITHUB_OUTPUT
 		gn ls "out/${TARGET}_${ARCH}" > ../targets-${TARGET}_${ARCH}.txt
 		gn args "out/${TARGET}_${ARCH}"  --list > ../args-${TARGET}_${ARCH}.txt
