@@ -325,7 +325,7 @@ build-chrome() {
 		ninja -C "$build_dir" ${pre_targets[*]} || _exit
 		local pre_target_file=(
 			chrome/browser/page_info/page_info_buildflags.h
-			chrome/browser/resource_coordinator/lifecycle_unit_state.mojom{,-forward,-features,-shared}.h
+			chrome/browser/resource_coordinator/lifecycle_unit_state.mojom{,-forward,-features,-shared{,-internal}}.h
 			components/page_image_service/mojom/page_image_service.mojom{,-{features,shared{,-internal},forward}}.h
 			components/content_settings/core/common/bromite_content_settings.inc
 			printing/mojom/printing_context.mojom-shared-internal.h
@@ -359,7 +359,7 @@ pack_cache() {
 	rm -rf src/.git
 	local toolchain_dir="src/third_party/depot_tools/win_toolchain/vs_files"
 	if [[ $HOST_OS-$TARGET = linux-win ]] && mountpoint -q "${toolchain_dir}"; then
-		umount -v $toolchain_dir
+		umount -v $toolchain_dir || umount -lv $toolchain_dir
 	fi
 	tar cf - src | zstd -vv -12 -T0 -o build_cache-$VER-$TARGET-$ARCH.tar.zst
 }
@@ -428,8 +428,7 @@ case "$1" in
 		cd src
 		[[ $ARCH = *64 ]] || exit 0
 		if [[ $HOST_OS-$TARGET = linux-win ]]; then
-			rm -rf  third_party/depot_tools/win_toolchain/vs_files
-			cp -a third_party/depot_tools/win_toolchain/vs_files{.ciopfs,}
+			build/ciopfs -o use_ino third_party/depot_tools/win_toolchain/vs_files{.ciopfs,}
 		fi
 		echo "upload=yes" >> $GITHUB_OUTPUT
 		gn ls "out/${TARGET}_${ARCH}" > ../targets-${TARGET}_${ARCH}.txt
