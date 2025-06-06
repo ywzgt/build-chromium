@@ -68,7 +68,13 @@ prepare() {
 
 	if [[ $HOST_OS == mac ]]; then
 		brew install coreutils gnu-sed
-		echo "PATH=$PWD/bin:$PWD/depot_tools:/usr/local/opt/gnu-sed/libexec/gnubin:$PATH" >> $GITHUB_ENV
+		local _path
+		if [[ $HOST_ARCH = arm64 ]]; then
+			_path="/opt/homebrew/opt/coreutils/libexec/gnubin:/opt/homebrew/opt/gnu-sed/libexec/gnubin"
+		else
+			_path="/usr/local/opt/gnu-sed/libexec/gnubin"
+		fi
+		echo "PATH=$PWD/bin:$PWD/depot_tools:${_path}:$PATH" >> $GITHUB_ENV
 		sudo mdutil -a -i off  #Disable Spotlight
 	elif [[ $HOST_OS == linux ]]; then
 		local dir="${PWD##*/}"
@@ -76,6 +82,7 @@ prepare() {
 		mv "../$dir" /mnt
 		ln -sv "/mnt/$dir" ..
 	fi
+	git pull origin "$GITHUB_REF" || true
 }
 
 fetch_src() {
@@ -121,10 +128,14 @@ rsync_src(){
 			PATCHES=(`cat ../chromium-patches/cromite_gms_patches.txt`)
 			(cd ../chromium-patches/patches; patch -p1 -i Edit-cromite-flags-support-patch.diff)
 			;;
+		linux|mac)
+			PATCHES=(`cat ../chromium-patches/desktop_patches.txt`)
+			;;
 		win)
-			PATCHES=(`cat ../chromium-patches/win_patches.txt`)
+			PATCHES=(`cat ../chromium-patches/win_patches.txt` `cat ../chromium-patches/desktop_patches.txt`)
 			;;
 	esac
+
 	_patch() {
 		local f="../chromium-patches/patches/$1"
 		 if ! grep -q 'GIT binary patch'  $f; then
@@ -367,8 +378,7 @@ pack_cache() {
 unpack_cache() {
 	local f="build_cache-$VER-$TARGET-$ARCH.tar.zst"
 	echo "Extracting the $f..."
-	tar xf $f
-	ls -lh $f && 	rm -f $f
+	tar xf $f && ls -lh $f && rm -f $f
 }
 
 pack_release() {

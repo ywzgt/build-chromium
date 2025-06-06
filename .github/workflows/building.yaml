@@ -91,7 +91,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_02:
@@ -135,7 +135,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_03:
@@ -179,7 +179,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_04:
@@ -223,7 +223,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_05:
@@ -267,7 +267,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_06:
@@ -311,7 +311,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_07:
@@ -355,7 +355,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_08:
@@ -399,7 +399,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_09:
@@ -443,7 +443,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
 
   build_job_10:
@@ -487,5 +487,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
-          path: ./release/*
+          path: ./release/
           if-no-files-found: error
