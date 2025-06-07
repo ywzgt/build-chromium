@@ -159,8 +159,8 @@ rsync_src(){
 				sed -i '1i#include "base/strings/string_util.h"' components/user_scripts/browser/user_script_prefs.cc
 				;;
 		esac
-		if [ -x components/adblock/core/resources/update.sh ]; then
-			(cd components/adblock/core/resources; ./update.sh)
+		if [ -f components/adblock/core/resources/update.sh ]; then
+			(cd components/adblock/core/resources; bash update.sh)
 		fi
 	fi
 
