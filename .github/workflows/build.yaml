@@ -1,0 +1,78 @@
+name: Build all platform
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'VERSION'
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        ros: [ubuntu-latest ]
+        arch: [ x86, x64, arm, arm64 ]
+        target: [ linux, win ]
+        exclude:
+          - arch: arm
+            target: win
+          - arch: x86
+            target: linux
+        include:
+          - ros: macos-latest
+            arch: x64
+            target: mac
+    uses: ./.github/workflows/building.yaml
+    with:
+      ros: ${{ matrix.ros }}
+      arch: ${{ matrix.arch }}
+      target: ${{ matrix.target }}
+
+  mobile:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x86, x64, arm, arm64 ]
+        target: [ android, cromite, cgms ]
+    uses: ./.github/workflows/building.yaml
+    with:
+      ros: ubuntu-latest
+      arch: ${{ matrix.arch }}
+      target: ${{ matrix.target }}
+
+  release:
+    needs: [ build, mobile ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        arch: [ x86, x64, arm, arm64 ]
+        target: [ android, cromite, cgms, linux, win ]
+        include:
+          - arch: x64
+            target: mac
+        exclude:
+          - arch: arm
+            target: win
+          - arch: x86
+            target: linux
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Generate release version
+        run: echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+      - name: Download artifact for ${{ matrix.target }} ${{ matrix.arch }}
+        uses: actions/download-artifact@v4
+        with:
+          name: release-${{ env.VERSION }}-${{ matrix.target }}-${{ matrix.arch }}
+      - run: ls -la release
+      - name: Upload to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          files: release/*
+          fail_on_unmatched_files: true
