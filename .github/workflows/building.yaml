@@ -1,0 +1,268 @@
+name: Building
+on:
+  workflow_call:
+    inputs:
+      arch:
+        required: true
+        type: string
+      ros:
+        required: true
+        type: string
+      target:
+        required: true
+        type: string
+
+jobs:
+  build_job_pre:
+    runs-on: ${{ inputs.ros }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Prepare
+        run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
+      - name: Fetch sources
+        run: ./build.sh fetch-sources
+      - name: Install build depend
+        run: ./build.sh install-dep
+      - name: Build
+        id: build
+        run: ./build.sh build pre
+      - name: Package build cache
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        run: ./build.sh pack cache
+      - name: Upload build cache as artifact
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
+          retention-days: 15
+      - name: List GN args
+        id: args
+        run: ./build.sh list_args
+        timeout-minutes: 5
+        continue-on-error: true
+      - name: Upload args files
+        if: steps.args.outputs.upload == 'yes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: args-${{ inputs.target }}-${{ inputs.arch }}
+          path: ./*.txt
+          overwrite: true
+      - name: Setup tmate ssh session
+        if: failure() && github.event_name == 'workflow_dispatch'
+        uses: mxschmitt/action-tmate@v3
+
+  build_job_01:
+    needs: build_job_pre
+    outputs:
+      status: ${{ steps.build.outputs.status }}
+    runs-on: ${{ inputs.ros }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Prepare
+        run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+      - name: Extracting the build-cache
+        run: ./build.sh unpack cache
+      - name: Install build depend
+        run: ./build.sh install-dep
+      - name: Build
+        id: build
+        run: ./build.sh build
+      - name: Package build cache
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        run: ./build.sh pack cache
+      - name: Upload build cache as artifact
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
+          overwrite: true
+      - name: Package release files
+        if: steps.build.outputs.status == 'finished'
+        run: ./build.sh pack release
+      - name: Upload release files as artifact
+        if: steps.build.outputs.status == 'finished'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: ./release/
+          if-no-files-found: error
+
+  build_job_02:
+    needs: build_job_01
+    if: ${{needs.build_job_01.outputs.status == 'running'}}
+    outputs:
+      status: ${{ steps.build.outputs.status }}
+    runs-on: ${{ inputs.ros }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Prepare
+        run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+      - name: Extracting the build-cache
+        run: ./build.sh unpack cache
+      - name: Install build depend
+        run: ./build.sh install-dep
+      - name: Build
+        id: build
+        run: ./build.sh build
+      - name: Package build cache
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        run: ./build.sh pack cache
+      - name: Upload build cache as artifact
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
+          overwrite: true
+      - name: Package release files
+        if: steps.build.outputs.status == 'finished'
+        run: ./build.sh pack release
+      - name: Upload release files as artifact
+        if: steps.build.outputs.status == 'finished'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: ./release/
+          if-no-files-found: error
+
+  build_job_03:
+    needs: build_job_02
+    if: ${{needs.build_job_02.outputs.status == 'running'}}
+    outputs:
+      status: ${{ steps.build.outputs.status }}
+    runs-on: ${{ inputs.ros }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Prepare
+        run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+      - name: Extracting the build-cache
+        run: ./build.sh unpack cache
+      - name: Install build depend
+        run: ./build.sh install-dep
+      - name: Build
+        id: build
+        run: ./build.sh build
+      - name: Package build cache
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        run: ./build.sh pack cache
+      - name: Upload build cache as artifact
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
+          overwrite: true
+      - name: Package release files
+        if: steps.build.outputs.status == 'finished'
+        run: ./build.sh pack release
+      - name: Upload release files as artifact
+        if: steps.build.outputs.status == 'finished'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: ./release/
+          if-no-files-found: error
+
+  build_job_04:
+    needs: build_job_03
+    if: ${{needs.build_job_03.outputs.status == 'running'}}
+    outputs:
+      status: ${{ steps.build.outputs.status }}
+    runs-on: ${{ inputs.ros }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Prepare
+        run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+      - name: Extracting the build-cache
+        run: ./build.sh unpack cache
+      - name: Install build depend
+        run: ./build.sh install-dep
+      - name: Build
+        id: build
+        run: ./build.sh build
+      - name: Package build cache
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        run: ./build.sh pack cache
+      - name: Upload build cache as artifact
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
+          overwrite: true
+      - name: Package release files
+        if: steps.build.outputs.status == 'finished'
+        run: ./build.sh pack release
+      - name: Upload release files as artifact
+        if: steps.build.outputs.status == 'finished'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: ./release/
+          if-no-files-found: error
+
+  build_job_05:
+    needs: build_job_04
+    if: ${{needs.build_job_04.outputs.status == 'running'}}
+    outputs:
+      status: ${{ steps.build.outputs.status }}
+    runs-on: ${{ inputs.ros }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Prepare
+        run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+      - name: Extracting the build-cache
+        run: ./build.sh unpack cache
+      - name: Install build depend
+        run: ./build.sh install-dep
+      - name: Build
+        id: build
+        run: ./build.sh build
+      - name: Package build cache
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        run: ./build.sh pack cache
+      - name: Upload build cache as artifact
+        if: steps.build.outputs.status == 'running' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
+          overwrite: true
+      - name: Package release files
+        if: steps.build.outputs.status == 'finished'
+        run: ./build.sh pack release
+      - name: Upload release files as artifact
+        if: steps.build.outputs.status == 'finished'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
+          path: ./release/
+          if-no-files-found: error
