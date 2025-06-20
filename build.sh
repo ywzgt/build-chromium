@@ -45,7 +45,7 @@ _env() {
 		TARGET=$TARGET
 		TARGET_OS=$TARGET_OS
 		VER=$(<VERSION)
-		PATH=$PWD/bin:$PWD/depot_tools:$PATH
+		PATH=$PWD/src/run_bin:$PWD/depot_tools:$PATH
 		DEPOT_TOOLS_UPDATE=0
 		NINJA_STATUS=$NINJA_STATUS
 	EOF
@@ -58,8 +58,8 @@ prepare() {
 	git config --global user.email 'noreply@github.com'
 
 	local CIPD_URL="https://chrome-infra-packages.appspot.com/dl"
-	wget -nv -O gn.zip "$CIPD_URL/gn/gn/${HOST_OS}-${HOST_ARCH}/+/latest"
-	unzip -d bin gn.zip 'gn*'
+# 	wget -nv -O gn.zip "$CIPD_URL/gn/gn/${HOST_OS}-${HOST_ARCH}/+/latest"
+# 	unzip -d bin gn.zip 'gn*'
 	wget -nv -O ninja.zip "$CIPD_URL/infra/3pp/tools/ninja/${HOST_OS}-${HOST_ARCH}/+/latest"
 	unzip -d bin ninja.zip 'ninja*'
 	wget -nv -O python3.zip "$CIPD_URL/infra/3pp/tools/cpython3/${HOST_OS}-${HOST_ARCH}/+/latest"
@@ -106,6 +106,7 @@ EOF
 	gcl https://chromium.googlesource.com/chromium/tools/depot_tools.git
 	gcl https://github.com/chromium/chromium.git -b "$VER" src
 	cat src/chrome/VERSION
+	mv bin src/run_bin
 
 	local patches_url="https://github.com/$GITHUB_ACTOR/chromium-patches"
 	if ! gcl "$patches_url" -b "${VER%.*}".x; then
@@ -242,6 +243,16 @@ rsync_src(){
 		update_winsdk
 		python3 build/vs_toolchain.py update --force
 	fi
+
+	local cl="$PWD/third_party/llvm-build/Release+Asserts/bin/clang"
+	local gn_version="$(sed -n 's/.*gn_version.*git_revision:\(.*\).,/\1/p' DEPS)"
+	git clone https://gn.googlesource.com/gn -b main
+	cd gn
+	git checkout --quiet "${gn_version}"
+	CXX="${cl}++" CC="$cl" build/gen.py
+	ninja -C out
+	install -m755 out/gn -t ../run_bin
+	rm -rf .git
 }
 
 install-dep() {
@@ -299,7 +310,7 @@ build-chrome() {
 	}
 
 	touch ../in_building
-	sleep 18000 && rm ../in_building && pkill ninja &
+	sleep 18000 && rm ../in_building && pkill -9 ninja &
 
 	local targets=()
 	local pre_targets=()
