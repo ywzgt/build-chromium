@@ -20,7 +20,7 @@ jobs:
           - arch: x86
             target: linux
         include:
-          - ros: macos-latest
+          - ros: macos-13
             arch: x64
             target: mac
     uses: ./.github/workflows/building.yaml

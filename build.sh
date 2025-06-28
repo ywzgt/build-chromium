@@ -74,7 +74,7 @@ prepare() {
 		else
 			_path="/usr/local/opt/gnu-sed/libexec/gnubin"
 		fi
-		echo "PATH=$PWD/bin:$PWD/depot_tools:${_path}:$PATH" >> $GITHUB_ENV
+		echo "PATH=$PWD/src/run_bin:$PWD/depot_tools:${_path}:$PATH" >> $GITHUB_ENV
 		sudo mdutil -a -i off  #Disable Spotlight
 	elif [[ $HOST_OS == linux ]]; then
 		local dir="${PWD##*/}"
@@ -106,7 +106,7 @@ EOF
 	gcl https://chromium.googlesource.com/chromium/tools/depot_tools.git
 	gcl https://github.com/chromium/chromium.git -b "$VER" src
 	cat src/chrome/VERSION
-	mv bin src/run_bin
+	mv bin src/run_bin && mv lib src/
 
 	local patches_url="https://github.com/$GITHUB_ACTOR/chromium-patches"
 	if ! gcl "$patches_url" -b "${VER%.*}".x; then
@@ -244,15 +244,15 @@ rsync_src(){
 		python3 build/vs_toolchain.py update --force
 	fi
 
-	local cl="$PWD/third_party/llvm-build/Release+Asserts/bin/clang"
+	(local cl="$PWD/third_party/llvm-build/Release+Asserts/bin/clang"
 	local gn_version="$(sed -n 's/.*gn_version.*git_revision:\(.*\).,/\1/p' DEPS)"
 	git clone https://gn.googlesource.com/gn -b main
 	cd gn
 	git checkout --quiet "${gn_version}"
 	CXX="${cl}++" CC="$cl" build/gen.py
-	ninja -C out
+	ninja -C out -v
 	install -m755 out/gn -t ../run_bin
-	rm -rf .git
+	rm -rf .git) || ln -sf ../third_party/depot_tools/gn.py "run_bin/gn"
 }
 
 install-dep() {
