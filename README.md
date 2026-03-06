@@ -7,7 +7,7 @@
 ### release
  - https://chromestatus.com/roadmap
  - https://chromiumdash.appspot.com/releases?platform=Linux
- - https://versionhistory.googleapis.com/v1/chrome/platforms/all/channels/all/versions/all/releases
+ - https://versionhistory.googleapis.com/v1/chrome/platforms/win64/channels/stable/versions/all/releases
 
 ### docs
  - https://chromium.googlesource.com/chromium/src/+/HEAD/docs
