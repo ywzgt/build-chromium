@@ -58,8 +58,6 @@ prepare() {
 	git config --global user.email 'noreply@github.com'
 
 	local CIPD_URL="https://chrome-infra-packages.appspot.com/dl"
-# 	wget -nv -O gn.zip "$CIPD_URL/gn/gn/${HOST_OS}-${HOST_ARCH}/+/latest"
-# 	unzip -d bin gn.zip 'gn*'
 	wget -nv -O ninja.zip "$CIPD_URL/infra/3pp/tools/ninja/${HOST_OS}-${HOST_ARCH}/+/latest"
 	unzip -d bin ninja.zip 'ninja*'
 	wget -nv -O python3.zip "$CIPD_URL/infra/3pp/tools/cpython3/${HOST_OS}-${HOST_ARCH}/+/latest"
@@ -94,7 +92,7 @@ solutions = [
     "url": "https://chromium.googlesource.com/chromium/src.git",
     "managed": False,
     "custom_deps": {},
-    "custom_vars": {},
+    "custom_vars": { "checkout_configuration": "small" },
   },
 ]
 target_os = [ '${TARGET_OS}' ]
@@ -110,7 +108,10 @@ EOF
 	mv bin src/run_bin && mv lib src/
 
 	local patches_url="https://github.com/$GITHUB_ACTOR/chromium-patches"
-	if ! gcl "$patches_url" -b "${VER%.*}".x; then
+	local patches_ver="${VER%.*}.x"
+	if git ls-remote --exit-code --tags --refs "$patches_url" "refs/tags/$VER" >/dev/null 2>&1
+	then patches_ver="$VER"; fi
+	if ! gcl "$patches_url" -b "$patches_ver"; then
 		gcl "$patches_url"
 	fi
 }
@@ -119,24 +120,27 @@ rsync_src(){
 	cd src
 
 	local PATCHES=()
+	local PATCH_DIR="../chromium-patches"
 	case "$TARGET" in
 		android)
-			PATCHES=(`cat ../chromium-patches/gms_patches.txt`)
+			PATCHES=(`cat $PATCH_DIR/gms_patches.txt`)
 			;;
 		cromite)
-			PATCHES=(`cat ../chromium-patches/cromite_patches.txt`)
+			PATCHES=(`cat $PATCH_DIR/cromite_patches.txt`)
 			;;
 		cgms)
-			PATCHES=(`cat ../chromium-patches/cromite_gms_patches.txt`)
-			(cd ../chromium-patches/patches; patch -p1 -i Edit-cromite-flags-support-patch.diff)
+			PATCHES=(`cat $PATCH_DIR/cromite_gms_patches.txt`)
+			;;
+		linux|mac)
+			PATCHES=(`cat $PATCH_DIR/desktop_patches.txt`)
 			;;
 		win)
-			PATCHES=(`cat ../chromium-patches/win_patches.txt`)
+			PATCHES=(`cat $PATCH_DIR/win_patches.txt` `cat $PATCH_DIR/desktop_patches.txt`)
 			;;
 	esac
 
 	_patch() {
-		local f="../chromium-patches/patches/$1"
+		local f="$PATCH_DIR/patches/$1"
 		 if ! grep -q 'GIT binary patch'  $f; then
 			if patch --dry-run -Np1 -i $f >/dev/null; then
 				patch -Np1 -i $f
@@ -153,15 +157,6 @@ rsync_src(){
 	if [[ -n ${PATCHES[*]} ]]; then
 		for i in ${PATCHES[*]}; do _patch $i; done
 		find . -name \*.orig -delete
-		case "$TARGET" in
-			cromite)
-				sed -i '1i#include "base/strings/string_util.h"' components/user_scripts/browser/user_script_prefs.cc
-				sed -i '/^package org.chromium.chrome.browser.privacy.settings;$/a\import android.content.SharedPreferences;\nimport org.chromium.base.ContextUtils;' chrome/android/java/src/org/chromium/chrome/browser/privacy/settings/PrivacySettings.java
-				;;
-			cgms)
-				sed -i '1i#include "base/strings/string_util.h"' components/user_scripts/browser/user_script_prefs.cc
-				;;
-		esac
 		if [ -f components/adblock/core/resources/update.sh ]; then
 			(cd components/adblock/core/resources; bash update.sh)
 		fi
@@ -172,7 +167,6 @@ rsync_src(){
 	build/util/lastchange.py -m GPU_LISTS_VERSION --revision-id-only --header gpu/config/gpu_lists_version.h
 	build/util/lastchange.py -m SKIA_COMMIT_HASH -s third_party/skia --header skia/ext/skia_commit_hash.h
 	build/util/lastchange.py -s third_party/dawn --revision gpu/webgpu/DAWN_VERSION
-	download_from_google_storage.py --no_resume --extract --bucket chromium-nodejs -s third_party/node/node_modules.tar.gz.sha1
 	python3 tools/download_optimization_profile.py --newest_state=chrome/android/profiles/newest.txt --local_state=chrome/android/profiles/local.txt --output_name=chrome/android/profiles/afdo.prof --gs_url_base=chromeos-prebuilt/afdo-job/llvm
 
 	if [[ $TARGET_OS = linux ]]; then
@@ -324,9 +318,10 @@ build-chrome() {
 	local pre_targets=()
 	case "$TARGET_OS" in
 		android)
-			targets=(chrome_public_{apk,bundle})
+			targets=(chrome_public_apk)
 			if [[ $ARCH = *64 ]] && [[ $TARGET != cgms ]]; then
 				targets+=(
+					chrome_public_bundle
 					system_webview_bundle
 					monochrome_public_bundle
 					trichrome_chrome_bundle  #only bundle
@@ -334,11 +329,6 @@ build-chrome() {
 					trichrome_webview_bundle  #or apk
 				)
 			fi
-			pre_targets=(
-				components/page_image_service/mojom:mojo_bindings
-				chrome/browser/resource_coordinator:mojo_bindings
-				chrome/browser/page_info:page_info_buildflags
-			)
 			if [[ $TARGET != android ]]; then
 				pre_targets+=(components/content_settings/core/common:bromite_content_settings)
 				if ! grep -q org.chromium.cromite "$build_dir/args.gn"; then
@@ -354,35 +344,10 @@ build-chrome() {
 			;;
 	esac
 
-	case "$TARGET_OS" in linux|mac|win)
-		pre_targets=(printing/{mojom:printing_context,backend/mojom:mojom}_headers) ;;
-	esac
-
 	echo "status=running" >> $GITHUB_OUTPUT
 	[[ $TARGET_OS-$1 != win-pre ]] || _rust_prebuild
 	if [ "$1" = "pre" ] && [ -n "$pre_targets" ]; then
 		ninja -C "$build_dir" ${pre_targets[*]} || _exit
-		local pre_target_file=(
-			chrome/browser/page_info/page_info_buildflags.h
-			chrome/browser/resource_coordinator/lifecycle_unit_state.mojom{,-forward,-features,-shared{,-internal}}.h
-			components/page_image_service/mojom/page_image_service.mojom{,-{features,shared{,-internal},forward}}.h
-			components/content_settings/core/common/bromite_content_settings.inc
-			printing/mojom/printing_context.mojom-shared-internal.h
-		)
-		for f in ${pre_target_file[@]}; do
-			[[ ${TARGET_OS} != android ]] || local _p="android_"
-			if [ -f "$build_dir/gen/$f" ] && [ ! -f "$build_dir/${_p}clang_${ARCH}/gen/$f" ]
-			then
-				mkdir -p "$build_dir/${_p}clang_${ARCH}/gen/${f%/*}"
-				cp -a "$build_dir/gen/$f" "$build_dir/${_p}clang_${ARCH}/gen/$f"
-				if [[ ${TARGET_OS}-${ARCH} = android-*64 ]]; then
-					local _arch=${ARCH%64}
-					_arch=${_arch/x/x86}
-					mkdir -p "$build_dir/android_clang_${_arch}/gen/${f%/*}"
-					cp -a "$build_dir/gen/$f" "$build_dir/android_clang_${_arch}/gen/$f"
-				fi
-			fi
-		done
 	fi
 	ninja -C "$build_dir" ${targets[*]:-chrome} || _retry
 
@@ -411,7 +376,7 @@ unpack_cache() {
 }
 
 pack_release() {
-	local DEST="$PWD/release"
+	local DEST="$PWD/release/release"
 	local build_dir="src/out/${TARGET}_${ARCH}"
 	mkdir -p "$DEST"
 	case "$TARGET_OS" in
@@ -419,7 +384,7 @@ pack_release() {
 			local f suffix
 			[[ $TARGET != cgms ]] || TARGET=cromite_gms
 			[[ $TARGET = android ]] || suffix="_${TARGET}"
-			mv -v $build_dir/apks/*.a{ab,pk} "$DEST"
+			find $build_dir/apks -name \*.aab -o -name \*.apk | xargs mv -vt "$DEST"
 			cd "$DEST"
 			for i in *; do
 				f="${ARCH}_${i%.*}${suffix}.${i##*.}"
