@@ -27,7 +27,7 @@ _env() {
 			;;
 	esac
 
-	TARGET="$3"
+	BLD_TARGET="$3"
 	case "$3" in
 		android|cromite|cgms)
 			TARGET_OS=android
@@ -42,7 +42,7 @@ _env() {
 		ARCH=$ARCH
 		HOST_OS=$HOST_OS
 		HOST_ARCH=$HOST_ARCH
-		TARGET=$TARGET
+		BLD_TARGET=$BLD_TARGET
 		TARGET_OS=$TARGET_OS
 		VER=$(<VERSION)
 		PATH=$PWD/src/run_bin:$PWD/depot_tools:$PATH
@@ -121,7 +121,7 @@ rsync_src(){
 
 	local PATCHES=()
 	local PATCH_DIR="../chromium-patches"
-	case "$TARGET" in
+	case "$BLD_TARGET" in
 		android)
 			PATCHES=(`cat $PATCH_DIR/gms_patches.txt`)
 			;;
@@ -282,7 +282,7 @@ install-dep() {
 
 build-chrome() {
 	cd src
-	local build_dir="out/${TARGET}_${ARCH}"
+	local build_dir="out/${BLD_TARGET}_${ARCH}"
 	if [ ! -d "$build_dir" ]; then
 		../args.sh "$TARGET_OS" "$ARCH" "$build_dir"
 		gn gen "$build_dir"
@@ -319,7 +319,7 @@ build-chrome() {
 	case "$TARGET_OS" in
 		android)
 			targets=(chrome_public_apk)
-			if [[ $ARCH = *64 ]] && [[ $TARGET != cgms ]]; then
+			if [[ $ARCH = *64 ]] && [[ $BLD_TARGET != cgms ]]; then
 				targets+=(
 					chrome_public_bundle
 					system_webview_bundle
@@ -329,7 +329,7 @@ build-chrome() {
 					trichrome_webview_bundle  #or apk
 				)
 			fi
-			if [[ $TARGET != android ]]; then
+			if [[ $BLD_TARGET != android ]]; then
 				pre_targets+=(components/content_settings/core/common:bromite_content_settings)
 				if ! grep -q org.chromium.cromite "$build_dir/args.gn"; then
 					sed -i '/chrome_public_manifest_package/s/=.*/= "org.chromium.cromite"/' "$build_dir/args.gn"
@@ -351,7 +351,7 @@ build-chrome() {
 	fi
 	ninja -C "$build_dir" ${targets[*]:-chrome} || _retry
 
-	if [[ $TARGET_OS-$ARCH = android-*64 ]] && [[ $TARGET != cgms ]]; then
+	if [[ $TARGET_OS-$ARCH = android-*64 ]] && [[ $BLD_TARGET != cgms ]]; then
 		rm -rf "$build_dir/apks/"monochrome*.aab
 		sed -i '/chrome_public_manifest_package/s/=.*/= "com.android.webview"/' "$build_dir/args.gn"
 		ninja -C "$build_dir" monochrome_public_bundle || _retry
@@ -362,28 +362,28 @@ build-chrome() {
 pack_cache() {
 	rm -rf src/.git
 	local toolchain_dir="src/third_party/depot_tools/win_toolchain/vs_files"
-	if [[ $HOST_OS-$TARGET = linux-win ]] && mountpoint -q "${toolchain_dir}"; then
+	if [[ $HOST_OS-$BLD_TARGET = linux-win ]] && mountpoint -q "${toolchain_dir}"; then
 		umount -v $toolchain_dir || umount -lv $toolchain_dir
 	fi
-	rm -f build_cache-$VER-$TARGET-$ARCH.tar.zst
-	tar cf - src | zstd -vv -12 -T0 -o build_cache-$VER-$TARGET-$ARCH.tar.zst
+	rm -f build_cache-$VER-${BLD_TARGET}-$ARCH.tar.zst
+	tar cf - src | zstd -vv -12 -T0 -o build_cache-$VER-${BLD_TARGET}-$ARCH.tar.zst
 }
 
 unpack_cache() {
-	local f="build_cache-$VER-$TARGET-$ARCH.tar.zst"
+	local f="build_cache-$VER-${BLD_TARGET}-$ARCH.tar.zst"
 	echo "Extracting the $f..."
 	tar xf $f && ls -lh $f && rm -f $f
 }
 
 pack_release() {
 	local DEST="$PWD/release/release"
-	local build_dir="src/out/${TARGET}_${ARCH}"
+	local build_dir="src/out/${BLD_TARGET}_${ARCH}"
 	mkdir -p "$DEST"
 	case "$TARGET_OS" in
 		android)
 			local f suffix
-			[[ $TARGET != cgms ]] || TARGET=cromite_gms
-			[[ $TARGET = android ]] || suffix="_${TARGET}"
+			[[ $BLD_TARGET != cgms ]] || BLD_TARGET=cromite_gms
+			[[ $BLD_TARGET = android ]] || suffix="_${BLD_TARGET}"
 			find $build_dir/apks -name \*.aab -o -name \*.apk | xargs mv -vt "$DEST"
 			cd "$DEST"
 			for i in *; do
@@ -432,12 +432,12 @@ case "$1" in
 	list_args)
 		cd src
 		[[ $ARCH = *64 ]] || exit 0
-		if [[ $HOST_OS-$TARGET = linux-win ]]; then
+		if [[ $HOST_OS-$BLD_TARGET = linux-win ]]; then
 			build/ciopfs -o use_ino third_party/depot_tools/win_toolchain/vs_files{.ciopfs,}
 		fi
 		echo "upload=yes" >> $GITHUB_OUTPUT
-		gn ls "out/${TARGET}_${ARCH}" > ../targets-${TARGET}_${ARCH}.txt
-		gn args "out/${TARGET}_${ARCH}"  --list > ../args-${TARGET}_${ARCH}.txt
-		gn args "out/${TARGET}_${ARCH}"  --list --short | tee -a ../args-short-${TARGET}_${ARCH}.txt
+		gn ls "out/${BLD_TARGET}_${ARCH}" > ../targets-${BLD_TARGET}_${ARCH}.txt
+		gn args "out/${BLD_TARGET}_${ARCH}"  --list > ../args-${BLD_TARGET}_${ARCH}.txt
+		gn args "out/${BLD_TARGET}_${ARCH}"  --list --short | tee -a ../args-short-${BLD_TARGET}_${ARCH}.txt
 		;;
 esac
