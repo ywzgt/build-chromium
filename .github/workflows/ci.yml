@@ -1,0 +1,70 @@
+name: CI
+on:
+  workflow_dispatch:
+jobs:
+  rebuild:
+    strategy:
+      fail-fast: false
+      matrix:
+        ros: [ ubuntu-latest ]
+        arch: [ x64 ]
+        target: [ linux, cromite, android ]
+        include:
+          - ros: macos-15-intel
+            arch: x64
+            target: mac
+    outputs:
+      status: ${{ steps.build.outputs.status }}
+    runs-on: ${{ matrix.ros }}
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v6
+    - name: Gh login
+      run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token; gh auth setup-git; gh auth status
+    - name: Run script
+      run: echo "Write runid to 'RUNID', Then Run touch continue"
+    - name: Setup tmate ssh session
+      uses: mxschmitt/action-tmate@v3
+      continue-on-error: true
+      timeout-minutes: 10
+    - name: Prepare
+      run: ./build.sh prepare ${{ matrix.ros }} ${{ matrix.arch }} ${{ matrix.target }}
+    - name: Download artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: cache-${{ env.VER }}-${{ matrix.target }}-${{ matrix.arch }}
+        github-token: ${{ secrets.ACTION_KEY }}
+        run-id: ${{ env.RUNid }}
+    - name: Extracting the build-cache
+      run: ./build.sh unpack cache
+    - name: Install build depend
+      run: ./build.sh install-dep
+    - name: Build
+      id: build
+      run: ./build.sh build
+    - run: pkill -9 tmate || true; rm -f continue; echo "Run touch continue"
+      if: failure()
+    - name: Setup tmate ssh session Again
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 100
+    - name: Package build cache
+      if: ${{ !cancelled() }}
+      run: ./build.sh pack cache
+    - name: Upload build cache as artifact
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: cache-${{ env.VER }}-${{ matrix.target }}-${{ matrix.arch }}
+        path: build_cache-${{ env.VER }}-${{ matrix.target }}-${{ matrix.arch }}.tar.zst
+        overwrite: true
+    - name: Package release files
+      if: steps.build.outputs.status == 'finished'
+      run: ./build.sh pack release
+    - name: Upload release files as artifact
+      if: steps.build.outputs.status == 'finished'
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-${{ env.VER }}-${{ matrix.target }}-${{ matrix.arch }}
+        path: ./release/
+        if-no-files-found: error

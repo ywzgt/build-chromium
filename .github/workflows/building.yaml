@@ -32,7 +32,7 @@ jobs:
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
         if: steps.build.outputs.status == 'running' && !cancelled()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
@@ -44,7 +44,7 @@ jobs:
         continue-on-error: true
       - name: Upload args files
         if: steps.args.outputs.upload == 'yes'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: args-${{ inputs.target }}-${{ inputs.arch }}
           path: ./*.txt
@@ -64,7 +64,7 @@ jobs:
       - name: Prepare
         run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
       - name: Download artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
       - name: Extracting the build-cache
@@ -79,7 +79,7 @@ jobs:
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
         if: steps.build.outputs.status == 'running' && !cancelled()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
@@ -89,7 +89,7 @@ jobs:
         run: ./build.sh pack release
       - name: Upload release files as artifact
         if: steps.build.outputs.status == 'finished'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: ./release/
@@ -107,7 +107,7 @@ jobs:
       - name: Prepare
         run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
       - name: Download artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
       - name: Extracting the build-cache
@@ -122,7 +122,7 @@ jobs:
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
         if: steps.build.outputs.status == 'running' && !cancelled()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
@@ -132,7 +132,7 @@ jobs:
         run: ./build.sh pack release
       - name: Upload release files as artifact
         if: steps.build.outputs.status == 'finished'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: ./release/
@@ -150,7 +150,7 @@ jobs:
       - name: Prepare
         run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
       - name: Download artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
       - name: Extracting the build-cache
@@ -165,7 +165,7 @@ jobs:
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
         if: steps.build.outputs.status == 'running' && !cancelled()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
@@ -175,7 +175,7 @@ jobs:
         run: ./build.sh pack release
       - name: Upload release files as artifact
         if: steps.build.outputs.status == 'finished'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: ./release/
@@ -193,7 +193,7 @@ jobs:
       - name: Prepare
         run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
       - name: Download artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
       - name: Extracting the build-cache
@@ -208,7 +208,7 @@ jobs:
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
         if: steps.build.outputs.status == 'running' && !cancelled()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
@@ -218,7 +218,7 @@ jobs:
         run: ./build.sh pack release
       - name: Upload release files as artifact
         if: steps.build.outputs.status == 'finished'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: ./release/
@@ -236,7 +236,7 @@ jobs:
       - name: Prepare
         run: ./build.sh prepare ${{ inputs.ros }} ${{ inputs.arch }} ${{ inputs.target }}
       - name: Download artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
       - name: Extracting the build-cache
@@ -251,7 +251,7 @@ jobs:
         run: ./build.sh pack cache
       - name: Upload build cache as artifact
         if: steps.build.outputs.status == 'running' && !cancelled()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: build_cache-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}.tar.zst
@@ -263,7 +263,7 @@ jobs:
         run: ./build.sh pack release
       - name: Upload release files as artifact
         if: steps.build.outputs.status == 'finished'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ env.VER }}-${{ inputs.target }}-${{ inputs.arch }}
           path: ./release/

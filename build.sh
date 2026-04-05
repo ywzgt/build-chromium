@@ -50,6 +50,11 @@ _env() {
 		NINJA_STATUS=$NINJA_STATUS
 	EOF
 	cat env.sh >> $GITHUB_ENV
+
+	if [[ $GITHUB_WORKFLOW_REF = */ci.yml@* ]]; then
+		[ -f RUNID ] && RUNid=$(sed 's/\s\+//g' RUNID) || RUNid=$GITHUB_RUN_ID
+		echo "RUNid=$RUNid" >> $GITHUB_ENV
+	fi
 }
 
 prepare() {
